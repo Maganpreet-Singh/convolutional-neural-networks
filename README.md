@@ -753,3 +753,1479 @@ Measure it. Visualize it. Compare it. Inspect its failures. Understand the repre
 The repository provides a clear path from CNN mechanics to applied computer vision: **Padding and Strides → Pooling → LeNet-5 → CNN vs ANN → Cats vs Dogs → Transfer Learning → Robustness → Explainability → Deployment.**
 
 <p align="center"><strong>🧠 Learn the math · 🔬 Run the experiment · 📊 Measure the behavior · 👁️ Visualize the representation · 🧯 Inspect the failure · 🚀 Improve the model</strong></p>
+
+---
+
+
+# 🔬 Deep-Dive CNN Study Guide
+
+This section turns the repository README into a compact reference manual. It is written so the repository can serve three purposes at once:
+
+1. a project showcase;
+2. a personal CNN study notebook;
+3. a starting point for future experiments.
+
+---
+
+## 🧠 CNNs in One Mental Model
+
+A convolutional network can be understood as a sequence of transformations:
+
+<pre><code>IMAGE
+  │
+  ▼
+TENSOR
+  │
+  ▼
+LOCAL OPERATIONS
+  │
+  ▼
+FILTER RESPONSES
+  │
+  ▼
+FEATURE MAPS
+  │
+  ▼
+NONLINEAR REPRESENTATIONS
+  │
+  ▼
+SPATIAL DOWNSAMPLING
+  │
+  ▼
+DEEPER FEATURES
+  │
+  ▼
+CLASSIFIER
+  │
+  ▼
+PROBABILITY DISTRIBUTION
+  │
+  ▼
+PREDICTION
+  │
+  ▼
+EVALUATION</code></pre>
+
+Each stage has a distinct job.
+
+The input stage represents the image numerically.
+
+Convolution discovers local spatial patterns.
+
+Activation functions introduce nonlinearity.
+
+Pooling or strided operations reduce spatial resolution.
+
+Later layers compose earlier signals.
+
+The classifier converts the final representation into task-specific outputs.
+
+Evaluation tells you whether that learned representation is useful.
+
+---
+
+# 🧮 The Four Core CNN Design Questions
+
+When designing or reading a CNN, keep asking four questions:
+
+### 1. What does the model see?
+
+This is controlled by:
+
+- input resolution;
+- kernel size;
+- receptive field;
+- stride;
+- depth.
+
+### 2. How much can it represent?
+
+This is influenced by:
+
+- number of filters;
+- depth;
+- dense-layer width;
+- bottleneck structure;
+- total parameters.
+
+### 3. How much information is preserved?
+
+This depends on:
+
+- padding;
+- stride;
+- pooling;
+- image resizing;
+- augmentation;
+- compression.
+
+### 4. How expensive is the model?
+
+This depends on:
+
+- spatial resolution;
+- number of channels;
+- number of filters;
+- kernel size;
+- parameter count;
+- memory access;
+- implementation;
+- hardware.
+
+Good CNN design is the process of balancing all four.
+
+---
+
+# 🧱 Convolution Layer Anatomy
+
+A convolution layer can be described by:
+
+<pre><code>Input channels
+      +
+Kernel height
+      +
+Kernel width
+      +
+Number of filters
+      +
+Bias
+      +
+Stride
+      +
+Padding
+      ↓
+Output feature maps</code></pre>
+
+Suppose the input has:
+
+<pre><code>H × W × C_in</code></pre>
+
+and the layer uses:
+
+<pre><code>K × K filters
+C_out filters</code></pre>
+
+The output is approximately:
+
+<pre><code>H_out × W_out × C_out</code></pre>
+
+The spatial dimensions depend on padding and stride.
+
+The depth of the output equals the number of filters.
+
+That distinction is critical:
+
+> Kernel size controls local spatial context. Filter count controls output depth.
+
+---
+
+# 🔍 Why Output Depth Equals Number of Filters
+
+Suppose:
+
+<pre><code>Input = 28 × 28 × 1
+Filters = 32
+Kernel = 3 × 3</code></pre>
+
+The layer learns 32 different detectors.
+
+Therefore the output depth is:
+
+<pre><code>28 × 28 × 32</code></pre>
+
+when spatial dimensions are preserved.
+
+Each channel corresponds to the spatial response of one learned filter.
+
+---
+
+# 🧠 Why a Filter Has Channel Depth
+
+For an RGB image, a 3×3 filter is not merely 3×3.
+
+It is:
+
+<pre><code>3 × 3 × 3</code></pre>
+
+because it must operate across:
+
+- red channel;
+- green channel;
+- blue channel.
+
+If the input has 64 channels, a standard 3×3 convolution filter has:
+
+<pre><code>3 × 3 × 64</code></pre>
+
+weights, plus a bias if biases are enabled.
+
+---
+
+# 🧮 Exact Convolution Parameter Formula
+
+For a standard convolution:
+
+<pre><code>Parameters =
+(K_h × K_w × C_in × C_out)
++
+C_out</code></pre>
+
+or:
+
+<pre><code>(K_h × K_w × C_in + 1) × C_out</code></pre>
+
+if one bias exists per output filter.
+
+Example:
+
+<pre><code>Kernel = 3 × 3
+Input channels = 16
+Filters = 32
+
+Parameters
+= (3 × 3 × 16 + 1) × 32
+= 4,640</code></pre>
+
+This is useful for architecture comparisons and parameter-budget experiments.
+
+---
+
+# 🧮 Dense Layer Parameter Formula
+
+For a dense layer:
+
+<pre><code>Parameters =
+Input units × Output units
++
+Output units</code></pre>
+
+Example:
+
+<pre><code>Input units = 3136
+Output units = 128
+
+Parameters
+= 3136 × 128 + 128
+= 401,536</code></pre>
+
+This demonstrates why flattening large feature maps can create large classifier heads.
+
+---
+
+# ⚙️ Convolution vs Dense Connectivity
+
+Consider:
+
+<pre><code>Input feature map = 28 × 28 × 32</code></pre>
+
+A dense layer with 128 units would require:
+
+<pre><code>(28 × 28 × 32) × 128 + 128</code></pre>
+
+which is:
+
+<pre><code>3,211,392 + 128
+= 3,211,520 parameters</code></pre>
+
+A small convolutional layer can often provide useful local processing with far fewer weights.
+
+This is the intuition behind convolutional parameter sharing.
+
+---
+
+# 🧠 Local Connectivity
+
+A dense layer can connect one neuron to every input unit.
+
+A convolutional neuron sees only a local region.
+
+For an early feature:
+
+<pre><code>small local region
+      ↓
+one activation</code></pre>
+
+This reduces the number of direct connections and matches local visual structure.
+
+As layers deepen, the effective receptive field grows.
+
+---
+
+# 🔭 Effective Receptive Field Intuition
+
+Suppose every layer uses:
+
+<pre><code>3 × 3 kernel
+stride = 1</code></pre>
+
+The first layer sees a 3×3 region.
+
+A second stacked 3×3 convolution can combine information covering a larger portion of the original image.
+
+A third layer expands the effective context further.
+
+Conceptually:
+
+<pre><code>Layer 1 → local pixels
+Layer 2 → local patterns
+Layer 3 → combinations of patterns
+Layer 4 → larger structures</code></pre>
+
+This is one reason depth can create richer representations without requiring enormous kernels everywhere.
+
+---
+
+# 🏃 Stride as a Sampling Decision
+
+Stride is not simply a technical argument.
+
+It is a sampling decision.
+
+A larger stride means:
+
+<pre><code>fewer spatial samples
+       ↓
+less spatial detail
+       ↓
+less computation
+</code></pre>
+
+A smaller stride means:
+
+<pre><code>more spatial samples
+       ↓
+more detail
+       ↓
+more computation
+</code></pre>
+
+This makes stride part of the model's information budget.
+
+---
+
+# 🧱 Padding as a Border Policy
+
+Padding answers:
+
+> What should happen when the filter reaches the image boundary?
+
+Without padding:
+
+- border pixels participate in fewer windows;
+- spatial dimensions shrink;
+- edge information can disappear quickly.
+
+With padding:
+
+- dimensions can be preserved;
+- borders get more opportunities to participate;
+- deeper architectures can retain resolution longer.
+
+The dedicated repository notebook visualizes this rather than presenting padding as a one-line API option.
+
+---
+
+# 🏔️ Pooling as Information Compression
+
+Pooling can be understood as a compression operator.
+
+Before:
+
+<pre><code>many spatial values</code></pre>
+
+After:
+
+<pre><code>fewer summary values</code></pre>
+
+The network gains:
+
+- smaller tensors;
+- lower computation;
+- lower memory;
+- potentially more local positional tolerance.
+
+The network loses:
+
+- exact spatial information;
+- fine-grained detail;
+- some localization precision.
+
+The repository's pooling experiments explicitly visualize the information trade-off.
+
+---
+
+# 🎯 Translation and Local Robustness
+
+Pooling can make a small local shift less disruptive.
+
+Imagine a strong activation moving slightly within a pooling window.
+
+A max-pooling operation can still return a similar value.
+
+This gives a limited form of local translation tolerance.
+
+It should not be interpreted as perfect translation invariance.
+
+That distinction matters.
+
+---
+
+# 🌍 Global Average Pooling
+
+Global average pooling changes the representation from:
+
+<pre><code>H × W × C</code></pre>
+
+to approximately:
+
+<pre><code>C</code></pre>
+
+by averaging each channel across its spatial dimensions.
+
+This means:
+
+> Each channel contributes one global summary value.
+
+Compared with flattening, this can dramatically reduce parameters.
+
+Compared with max pooling, it preserves an average rather than only the strongest local response.
+
+---
+
+# ⚡ Activation Functions in More Detail
+
+A neural network without nonlinearity can collapse multiple linear layers into one linear transformation.
+
+For example:
+
+<pre><code>y = W₂(W₁x)</code></pre>
+
+can be rewritten as:
+
+<pre><code>y = (W₂W₁)x</code></pre>
+
+The activation function breaks that simple linear collapse.
+
+Common activations to study include:
+
+- ReLU;
+- sigmoid;
+- tanh;
+- softmax for multi-class outputs.
+
+Different activations are appropriate for different positions and tasks.
+
+---
+
+# 🧠 Why Softmax Is Used for Multi-Class Classification
+
+For ten mutually exclusive classes, the final layer can produce ten logits.
+
+Softmax converts them into a probability-like distribution whose values sum to one:
+
+<pre><code>p_i = exp(z_i) / Σ exp(z_j)</code></pre>
+
+Conceptually:
+
+<pre><code>logits
+ ↓
+softmax
+ ↓
+10 output values
+ ↓
+sum = 1</code></pre>
+
+The largest output is commonly selected as the predicted class.
+
+---
+
+# 🔢 Binary Classification
+
+Cats vs Dogs is naturally a binary task.
+
+A model may produce one probability:
+
+<pre><code>P(dog)</code></pre>
+
+and infer:
+
+<pre><code>P(cat) = 1 − P(dog)</code></pre>
+
+depending on the chosen output formulation.
+
+This differs from MNIST's ten-way classification.
+
+---
+
+# 🧠 Loss Functions
+
+The training objective tells the model what “wrong” means.
+
+Common classification choices include:
+
+### Binary cross-entropy
+
+Useful for binary classification.
+
+### Categorical cross-entropy
+
+Useful for mutually exclusive multi-class outputs represented as one-hot vectors.
+
+### Sparse categorical cross-entropy
+
+Useful when labels are integer class IDs rather than one-hot vectors.
+
+The loss is not the same thing as accuracy.
+
+A model can improve its loss while accuracy stays unchanged for a period, because probability confidence can change even when the predicted class does not.
+
+---
+
+# 🔄 Forward Propagation
+
+The forward pass:
+
+<pre><code>input
+ ↓
+layer 1
+ ↓
+layer 2
+ ↓
+...
+ ↓
+output
+ ↓
+loss</code></pre>
+
+Every layer transforms the representation.
+
+During inference, the forward pass is all that is required.
+
+During training, the forward pass is followed by backpropagation.
+
+---
+
+# 🔁 Backpropagation
+
+The training cycle:
+
+<pre><code>Forward pass
+      ↓
+Prediction
+      ↓
+Loss
+      ↓
+Gradients
+      ↓
+Weight update
+      ↓
+Next batch</code></pre>
+
+Backpropagation applies the chain rule to determine how changes in parameters affect the loss.
+
+This is how convolution filters become learned feature detectors.
+
+---
+
+# 🏃 Optimizers
+
+An optimizer uses gradients to update trainable parameters.
+
+Examples:
+
+- SGD;
+- Momentum;
+- Adam;
+- RMSprop.
+
+The optimizer influences:
+
+- convergence speed;
+- stability;
+- sensitivity to learning rate;
+- training dynamics.
+
+For fair experiments, change the optimizer while keeping other major conditions controlled.
+
+---
+
+# 🎚️ Learning Rate
+
+The learning rate controls update magnitude.
+
+Too high:
+
+<pre><code>large updates
+↓
+possible instability
+</code></pre>
+
+Too low:
+
+<pre><code>tiny updates
+↓
+slow learning
+</code></pre>
+
+The ideal range depends on:
+
+- model;
+- optimizer;
+- dataset;
+- batch size;
+- normalization;
+- initialization.
+
+---
+
+# 🧪 Batch Size
+
+Batch size is the number of training examples used for one optimization step.
+
+Small batches:
+
+- provide noisier gradient estimates;
+- can use less memory;
+- may introduce different optimization dynamics.
+
+Large batches:
+
+- provide more stable gradient estimates;
+- can improve hardware utilization;
+- require more memory.
+
+Batch size should be treated as an experimental variable.
+
+---
+
+# 🔥 Epochs
+
+An epoch is one complete pass through the training data.
+
+More epochs do not automatically mean better generalization.
+
+Eventually:
+
+<pre><code>training performance ↑
+validation performance →</code></pre>
+
+may indicate diminishing returns or overfitting.
+
+---
+
+# 🛡️ Regularization
+
+Regularization discourages undesirable model behavior or excessive complexity.
+
+Common tools:
+
+- dropout;
+- L1 regularization;
+- L2 regularization;
+- early stopping;
+- data augmentation;
+- weight decay.
+
+Use them for a reason.
+
+---
+
+# 🌧️ Data Augmentation
+
+Augmentation artificially creates additional training variation.
+
+Possible image transformations:
+
+- translation;
+- rotation;
+- crop;
+- zoom;
+- brightness;
+- contrast;
+- horizontal flip when semantically valid.
+
+The correct transformation depends on the domain.
+
+A transformation that preserves the label is usually more useful than a transformation that creates unrealistic examples.
+
+---
+
+# 🧠 Batch Normalization
+
+Batch normalization standardizes intermediate activations using batch statistics during training.
+
+It can help optimization and influence the distribution of intermediate features.
+
+A future notebook could compare:
+
+<pre><code>CNN
+vs
+CNN + BatchNorm</code></pre>
+
+while controlling all other settings.
+
+---
+
+# 🧱 Architecture Patterns
+
+A common CNN block is:
+
+<pre><code>Conv
+ ↓
+Activation
+ ↓
+Conv
+ ↓
+Activation
+ ↓
+Pooling</code></pre>
+
+Another common pattern:
+
+<pre><code>Conv
+ ↓
+BatchNorm
+ ↓
+Activation
+ ↓
+Conv
+ ↓
+BatchNorm
+ ↓
+Activation
+ ↓
+Downsample</code></pre>
+
+Modern architectures can add residual connections, bottlenecks, attention, and depthwise separable convolution.
+
+---
+
+# 🔗 Residual Learning
+
+A residual block introduces a shortcut:
+
+<pre><code>x ───────────────┐
+│                 │
+▼                 │
+Transform         │
+│                 │
+▼                 │
+      Add ◄───────┘
+       │
+       ▼
+      y</code></pre>
+
+Instead of forcing a stack to learn an entirely new mapping, it can learn a residual adjustment.
+
+This idea is central to the ResNet family and is a natural future topic after LeNet-5.
+
+---
+
+# 📱 Depthwise Separable Convolution
+
+Depthwise separable convolution factorizes convolution into:
+
+<pre><code>depthwise convolution
+        +
+pointwise convolution</code></pre>
+
+This can reduce computation and parameter count compared with standard convolution.
+
+It is particularly important for efficient architectures such as MobileNet.
+
+---
+
+# 🏗️ Classical CNN Progression
+
+A useful historical learning path:
+
+<pre><code>LeNet-5
+   ↓
+AlexNet
+   ↓
+VGG
+   ↓
+Inception
+   ↓
+ResNet
+   ↓
+MobileNet
+   ↓
+EfficientNet</code></pre>
+
+Each family highlights different engineering ideas:
+
+- deeper networks;
+- better optimization;
+- multi-scale processing;
+- residual connections;
+- efficiency;
+- compound scaling.
+
+---
+
+# 🔍 Model Interpretability Layers
+
+Interpretability can be viewed in levels:
+
+<pre><code>Level 1
+Weights / Filters
+      ↓
+Level 2
+Feature Maps
+      ↓
+Level 3
+Embeddings / Feature Space
+      ↓
+Level 4
+Confidence + Errors
+      ↓
+Level 5
+Attribution / Saliency
+      ↓
+Level 6
+Counterfactual Analysis</code></pre>
+
+This repository already contains many Level 1–4 ingredients.
+
+---
+
+# 📊 Confidence vs Correctness Matrix
+
+A useful diagnostic table:
+
+| | Correct | Incorrect |
+|---|---|---|
+| High confidence | Easy examples | Dangerous overconfidence |
+| Low confidence | Ambiguous but correct | Difficult failures |
+
+This is one reason confidence analysis matters.
+
+---
+
+# 🧯 Error Taxonomy
+
+Not all errors are equivalent.
+
+### Type A — Ambiguous sample
+
+The image itself is difficult.
+
+### Type B — Similar classes
+
+Two classes share visual structure.
+
+### Type C — Preprocessing issue
+
+The model sees a representation unlike training data.
+
+### Type D — Distribution shift
+
+The image distribution differs from training data.
+
+### Type E — Model capacity limitation
+
+The architecture may not represent the relevant pattern sufficiently.
+
+### Type F — Optimization issue
+
+The model may not have found a useful solution under the chosen training setup.
+
+A strong error analysis tries to distinguish among these.
+
+---
+
+# 🧪 Data Leakage
+
+A serious ML project must avoid leakage.
+
+Leakage can happen when:
+
+- test examples enter training;
+- augmented copies cross splits improperly;
+- preprocessing uses future/test information;
+- duplicate images appear across datasets.
+
+Always define the split before model fitting.
+
+---
+
+# 🧠 Train / Validation / Test Roles
+
+### Training set
+
+Used to learn parameters.
+
+### Validation set
+
+Used to make development decisions.
+
+### Test set
+
+Used for final unbiased evaluation.
+
+A simple mental model:
+
+<pre><code>TRAIN
+learn
+
+VALIDATION
+choose / tune
+
+TEST
+final evaluation</code></pre>
+
+The test set should not become an informal tuning set.
+
+---
+
+# 📈 Learning Curve Interpretation
+
+### Underfitting
+
+Potential signal:
+
+<pre><code>training score low
+validation score low</code></pre>
+
+### Good fit
+
+Potential signal:
+
+<pre><code>training score high
+validation score also high
+small gap</code></pre>
+
+### Overfitting
+
+Potential signal:
+
+<pre><code>training score very high
+validation score significantly lower</code></pre>
+
+These are diagnosis patterns, not mathematical laws.
+
+---
+
+# 🔬 Why Error Analysis Beats Score Chasing
+
+Suppose two models achieve nearly identical overall accuracy.
+
+Model A may fail on:
+
+<pre><code>2 ↔ 7
+3 ↔ 8</code></pre>
+
+Model B may fail on:
+
+<pre><code>4 ↔ 9
+5 ↔ 8</code></pre>
+
+If your application depends heavily on a specific class, these models are not operationally equivalent.
+
+Therefore:
+
+> Global metrics summarize; error analysis explains.
+
+---
+
+# 🧠 Why Feature-Space Analysis Matters
+
+The classifier only sees the final representation.
+
+Therefore a useful question is:
+
+> What geometry does the network create before classification?
+
+A representation may transform:
+
+<pre><code>messy pixel space
+      ↓
+less entangled feature space
+      ↓
+more separable classes</code></pre>
+
+PCA and 3D plots provide one way to inspect this.
+
+---
+
+# 📊 PCA Interpretation
+
+Suppose PCA reports:
+
+<pre><code>PC1 → 40%
+PC2 → 20%
+PC3 → 10%</code></pre>
+
+Then the first three components explain approximately 70% of the variance.
+
+But that does not mean 70% of “classification information” is guaranteed to be preserved.
+
+Variance and discriminative information are different concepts.
+
+---
+
+# 🧠 Representation vs Prediction
+
+A useful distinction:
+
+### Representation
+
+What information the network encodes.
+
+### Prediction
+
+What decision the classifier makes from that representation.
+
+A model can produce a good representation but a poorly tuned classifier head.
+
+Conversely, a classifier can obtain strong performance without providing an interpretable representation.
+
+This distinction becomes increasingly important in advanced deep learning.
+
+---
+
+# 🧪 Controlled Benchmarking Template
+
+For each architecture, record:
+
+| Category | Record |
+|---|---|
+| Data | Dataset and split |
+| Input | Resolution and channels |
+| Preprocessing | Normalization / augmentation |
+| Architecture | Full layer list |
+| Parameters | Total trainable parameters |
+| Optimization | Optimizer + learning rate |
+| Batch | Batch size |
+| Training | Epochs / scheduler |
+| Accuracy | Train / validation / test |
+| F1 | Macro / weighted / class-wise |
+| Error | Confusion matrix |
+| Confidence | Distribution / calibration |
+| Runtime | Training + inference |
+| Memory | Peak usage when available |
+
+---
+
+# 📦 Model Artifact Checklist
+
+When saving a model, also save the information needed to use it correctly.
+
+Recommended package:
+
+<pre><code>model.keras
+preprocessing description
+class mapping
+input shape
+training configuration
+evaluation summary</code></pre>
+
+For natural-image projects, preprocessing is especially important.
+
+A model trained on normalized 224×224 images should not be fed arbitrary raw pixels without the expected transformation.
+
+---
+
+# 🧪 Inference Pipeline
+
+A safe inference path:
+
+<pre><code>Raw image
+   ↓
+Validate file
+   ↓
+Decode
+   ↓
+Resize
+   ↓
+Convert channels
+   ↓
+Normalize
+   ↓
+Add batch dimension
+   ↓
+Model
+   ↓
+Probability
+   ↓
+Class mapping
+   ↓
+Display result</code></pre>
+
+Future deployment work should make this pipeline explicit rather than embedding it invisibly inside a notebook.
+
+---
+
+# 🐱🐶 Cats vs Dogs: Next-Level Experiments
+
+Once the current classifier is understood, try:
+
+### Baseline
+
+Train a small CNN from scratch.
+
+### Augmentation
+
+Add realistic image transformations.
+
+### Transfer learning
+
+Use a pretrained backbone.
+
+### Fine-tuning
+
+Unfreeze selected layers.
+
+### Error analysis
+
+Inspect confusing cat/dog images.
+
+### Robustness
+
+Test brightness, blur, crop, and compression.
+
+### Deployment
+
+Expose the saved model through a simple web application.
+
+---
+
+# 🧠 LeNet-5: Next-Level Experiments
+
+Use the existing LeNet-5 notebook as the baseline.
+
+Then test:
+
+1. fewer filters;
+2. more filters;
+3. deeper convolution;
+4. different pooling;
+5. different activations;
+6. learning-rate changes;
+7. regularization;
+8. augmentation;
+9. optimizer changes.
+
+For each run, save:
+
+<pre><code>configuration
+metrics
+history
+model
+plots
+conclusion</code></pre>
+
+This creates a reproducible experiment family.
+
+---
+
+# ⚖️ CNN vs ANN: Fair Comparison Rules
+
+For a defensible comparison:
+
+- use the same dataset;
+- use the same split;
+- use consistent preprocessing;
+- define comparable training budgets;
+- document random seeds;
+- compare parameter counts;
+- compare runtime carefully;
+- inspect class-level metrics;
+- inspect failure examples.
+
+Changing too many factors can turn an architecture comparison into a collection of unrelated experiments.
+
+---
+
+# 🎓 Learning Milestones
+
+## Milestone 1
+
+You can calculate convolution output sizes manually.
+
+## Milestone 2
+
+You can explain padding and stride without looking at documentation.
+
+## Milestone 3
+
+You can explain why pooling reduces spatial dimensions.
+
+## Milestone 4
+
+You can calculate convolution parameter counts.
+
+## Milestone 5
+
+You can trace a tensor through a CNN layer by layer.
+
+## Milestone 6
+
+You can interpret a confusion matrix.
+
+## Milestone 7
+
+You can explain training vs validation curves.
+
+## Milestone 8
+
+You can inspect learned filters and feature maps.
+
+## Milestone 9
+
+You can diagnose common misclassifications.
+
+## Milestone 10
+
+You can build and evaluate an image classifier without blindly copying a tutorial.
+
+---
+
+# 🧠 CNN Interview Cheat Sheet
+
+<details>
+<summary><strong>What is convolution?</strong></summary>
+
+A local weighted operation that applies a learned kernel across spatial positions to produce feature responses.
+
+</details>
+
+<details>
+<summary><strong>Why do CNNs share weights?</strong></summary>
+
+The same local detector can be useful at multiple positions, reducing parameter count and exploiting spatial regularity.
+
+</details>
+
+<details>
+<summary><strong>What does stride do?</strong></summary>
+
+It controls the movement of the convolution or pooling window and therefore affects spatial sampling and output resolution.
+
+</details>
+
+<details>
+<summary><strong>What does padding do?</strong></summary>
+
+It controls border handling and output spatial dimensions.
+
+</details>
+
+<details>
+<summary><strong>What does pooling do?</strong></summary>
+
+It summarizes spatial neighborhoods and usually reduces resolution.
+
+</details>
+
+<details>
+<summary><strong>Why use multiple filters?</strong></summary>
+
+Different filters can learn different response patterns, producing a richer feature representation.
+
+</details>
+
+<details>
+<summary><strong>Why does depth help?</strong></summary>
+
+It enables composition of lower-level features into increasingly complex representations and enlarges effective receptive fields.
+
+</details>
+
+<details>
+<summary><strong>Why can a CNN be more parameter-efficient than a dense ANN?</strong></summary>
+
+Because convolution uses local connectivity and reuses the same weights across spatial positions.
+
+</details>
+
+<details>
+<summary><strong>Why isn't accuracy enough?</strong></summary>
+
+Because accuracy does not reveal class-specific failures, confidence behavior, parameter cost, or systematic error patterns.
+
+</details>
+
+---
+
+# 📚 Recommended Concept Progression
+
+The repository is best understood in this order:
+
+<pre><code>1. Images as tensors
+2. Convolution
+3. Kernels and filters
+4. Padding
+5. Stride
+6. Output dimensions
+7. Pooling
+8. Receptive fields
+9. Activations
+10. CNN architecture
+11. Training
+12. Evaluation
+13. Feature visualization
+14. CNN vs ANN
+15. Natural-image classification
+16. Transfer learning
+17. Explainability
+18. Robustness
+19. Deployment</code></pre>
+
+---
+
+# 🔬 From Educational Project to Research Project
+
+The project can move toward research quality when every experiment has:
+
+<pre><code>Question
+  ↓
+Hypothesis
+  ↓
+Controlled setup
+  ↓
+Measurement
+  ↓
+Uncertainty / limitations
+  ↓
+Interpretation
+  ↓
+Next hypothesis</code></pre>
+
+Research maturity does not come from using a bigger model.
+
+It comes from asking better questions and controlling the experiment.
+
+---
+
+# 🏗️ Recommended Future File Additions
+
+A useful long-term extension:
+
+<pre><code>experiments/
+├── kernel_size/
+├── stride/
+├── padding/
+├── pooling/
+├── optimizer/
+├── learning_rate/
+├── augmentation/
+├── robustness/
+├── calibration/
+└── transfer_learning/
+
+src/
+├── data.py
+├── models.py
+├── evaluation.py
+├── visualization.py
+└── inference.py
+
+configs/
+├── baseline.yaml
+├── cnn.yaml
+└── transfer_learning.yaml
+
+reports/
+├── figures/
+└── tables/</code></pre>
+
+This separates reusable engineering code from notebooks and generated outputs.
+
+---
+
+# 📊 Suggested Experiment Tracking Table
+
+| Run | Model | Params | Epochs | LR | Val Acc | Test Acc | F1 | Time | Notes |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| A | Baseline | — | — | — | — | — | — | — | Reference |
+| B | Larger CNN | — | — | — | — | — | — | — | More capacity |
+| C | Regularized | — | — | — | — | — | — | — | Generalization |
+| D | Augmented | — | — | — | — | — | — | — | Robustness |
+| E | Transfer | — | — | — | — | — | — | — | Pretrained |
+
+Populate this table from actual experiments rather than estimated values.
+
+---
+
+# 🌟 Portfolio-Level Project Statement
+
+A polished project description for a portfolio can be:
+
+> **A visual, experiment-driven CNN repository exploring convolution, padding, stride, pooling, LeNet-5, feature-map analysis, confidence, error analysis, CNN-vs-ANN comparisons, and natural-image classification with TensorFlow/Keras.**
+
+A stronger technical framing:
+
+> **Built an end-to-end CNN study covering low-level convolution mechanics, classical LeNet-5 modeling, multi-metric ANN/CNN comparison, learned-representation visualization, uncertainty analysis, and applied Cats-vs-Dogs image classification.**
+
+Keep portfolio statements aligned with artifacts actually present in the repository.
+
+---
+
+# 🧭 Final Architecture Checklist
+
+Before building a CNN, answer:
+
+<pre><code>Input size?
+      ↓
+Number of channels?
+      ↓
+Kernel size?
+      ↓
+Number of filters?
+      ↓
+Padding?
+      ↓
+Stride?
+      ↓
+Activation?
+      ↓
+Downsampling?
+      ↓
+Receptive field?
+      ↓
+Parameter count?
+      ↓
+Classifier head?
+      ↓
+Loss?
+      ↓
+Optimizer?
+      ↓
+Evaluation metrics?
+      ↓
+Error analysis?</code></pre>
+
+If you can answer every box, you understand the architecture rather than merely writing it.
+
+---
+
+# 🏁 The Core Lesson
+
+The repository is ultimately about a change in mindset.
+
+Beginner mindset:
+
+> “Which layer should I copy?”
+
+Stronger mindset:
+
+> “What representation do I want?”
+
+Advanced mindset:
+
+> “What inductive bias, capacity, sampling strategy, optimization procedure, and evaluation protocol best answer this problem?”
+
+That progression is the real purpose of studying CNNs deeply.
+
+---
+
+<p align="center">
+  <strong>🧠 Think in tensors.</strong><br>
+  <strong>🔬 Think in experiments.</strong><br>
+  <strong>📊 Think in measurements.</strong><br>
+  <strong>👁️ Think in representations.</strong><br>
+  <strong>🧯 Think in failure modes.</strong><br>
+  <strong>🚀 Think in systems.</strong>
+</p>
