@@ -1,0 +1,19 @@
+Layer,Type,Spatial,Channels,Jump,Receptive Field
+block1_conv1,Conv,224×224,64,1,3
+block1_conv2,Conv,224×224,64,1,5
+block1_pool,Pool,112×112,64,2,6
+block2_conv1,Conv,112×112,128,2,10
+block2_conv2,Conv,112×112,128,2,14
+block2_pool,Pool,56×56,128,4,16
+block3_conv1,Conv,56×56,256,4,24
+block3_conv2,Conv,56×56,256,4,32
+block3_conv3,Conv,56×56,256,4,40
+block3_pool,Pool,28×28,256,8,44
+block4_conv1,Conv,28×28,512,8,60
+block4_conv2,Conv,28×28,512,8,76
+block4_conv3,Conv,28×28,512,8,92
+block4_pool,Pool,14×14,512,16,100
+block5_conv1,Conv,14×14,512,16,132
+block5_conv2,Conv,14×14,512,16,164
+block5_conv3,Conv,14×14,512,16,196
+block5_pool,Pool,7×7,512,32,212

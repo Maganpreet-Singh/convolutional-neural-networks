@@ -1,0 +1,24 @@
+Index,Layer,Type,Output Shape,Parameters,How to visualize
+0,input_layer,InputLayer,"(None, 224, 224, 3)",0,Input / vector / other
+1,block1_conv1,Convolution,"(None, 224, 224, 64)","1,792",Spatial feature map
+2,block1_conv2,Convolution,"(None, 224, 224, 64)","36,928",Spatial feature map
+3,block1_pool,Max Pooling,"(None, 112, 112, 64)",0,Spatial feature map
+4,block2_conv1,Convolution,"(None, 112, 112, 128)","73,856",Spatial feature map
+5,block2_conv2,Convolution,"(None, 112, 112, 128)","147,584",Spatial feature map
+6,block2_pool,Max Pooling,"(None, 56, 56, 128)",0,Spatial feature map
+7,block3_conv1,Convolution,"(None, 56, 56, 256)","295,168",Spatial feature map
+8,block3_conv2,Convolution,"(None, 56, 56, 256)","590,080",Spatial feature map
+9,block3_conv3,Convolution,"(None, 56, 56, 256)","590,080",Spatial feature map
+10,block3_pool,Max Pooling,"(None, 28, 28, 256)",0,Spatial feature map
+11,block4_conv1,Convolution,"(None, 28, 28, 512)","1,180,160",Spatial feature map
+12,block4_conv2,Convolution,"(None, 28, 28, 512)","2,359,808",Spatial feature map
+13,block4_conv3,Convolution,"(None, 28, 28, 512)","2,359,808",Spatial feature map
+14,block4_pool,Max Pooling,"(None, 14, 14, 512)",0,Spatial feature map
+15,block5_conv1,Convolution,"(None, 14, 14, 512)","2,359,808",Spatial feature map
+16,block5_conv2,Convolution,"(None, 14, 14, 512)","2,359,808",Spatial feature map
+17,block5_conv3,Convolution,"(None, 14, 14, 512)","2,359,808",Spatial feature map
+18,block5_pool,Max Pooling,"(None, 7, 7, 512)",0,Spatial feature map
+19,flatten,Flatten,"(None, 25088)",0,Input / vector / other
+20,fc1,Dense,"(None, 4096)","102,764,544",Vector
+21,fc2,Dense,"(None, 4096)","16,781,312",Vector
+22,predictions,Dense,"(None, 1000)","4,097,000",Vector
